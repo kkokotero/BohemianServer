@@ -1,0 +1,40 @@
+{
+    "compilerOptions": {
+        "lib": ["ES2022", "DOM"],
+        "target": "ESNext",
+        "module": "ES2022",
+        "moduleDetection": "force",
+        "allowJs": true,
+        "moduleResolution": "node",
+        "strict": true,
+        "skipLibCheck": true,
+        "noFallthroughCasesInSwitch": true,
+        "noUncheckedIndexedAccess": true,
+        "noUnusedLocals": false,
+        "noUnusedParameters": false,
+        "noPropertyAccessFromIndexSignature": false,
+        "outDir": "dist",
+        "rootDir": "./src/",
+        "baseUrl": "./",
+        "declaration": true,
+        "declarationMap": false,
+        "emitDeclarationOnly": false,
+        "removeComments": false,
+        "noEmitHelpers": false,
+        "preserveConstEnums": true,
+        "resolveJsonModule": true,
+        "allowSyntheticDefaultImports": true,
+        "experimentalDecorators": true,
+        "emitDecoratorMetadata": true
+    },
+    "exclude": ["node_modules", "dist", "**/__tests__", "**/__snapshots__"],
+    "include": ["src/**/*.ts"],
+    "tsc-alias": {
+        "verbose": false,
+        "resolveFullPaths": true,
+        "fileExtensions": {
+            "inputGlob": "{js,jsx,mjs}",
+            "outputCheck": ["js", "json", "jsx", "mjs"]
+        }
+    }
+}
