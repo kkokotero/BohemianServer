@@ -314,8 +314,13 @@ export class DomainHandler {
    * @param path - The route path.
    * @param route - The route configuration.
    */
-  private cacheRoute(host: string, path: string, route: RouterStructure) {
-    this.routeCache.set(`${host}-${path}`, route);
+  private cacheRoute(
+    host: string,
+    path: string,
+    method: string,
+    route: RouterStructure,
+  ) {
+    this.routeCache.set(`${host}-${path}-${method}`, route);
   }
 
   /**
@@ -327,8 +332,9 @@ export class DomainHandler {
   private getCacheRoute(
     host: string,
     path: string,
+    method: string,
   ): RouterStructure | undefined {
-    return this.routeCache.get(`${host}-${path}`);
+    return this.routeCache.get(`${host}-${path}-${method}`);
   }
 
   /**
@@ -337,8 +343,12 @@ export class DomainHandler {
    * @param host - The host associated with the route.
    * @returns The route configuration or undefined if not found.
    */
-  protected find(path: string, host: string): RouterStructure | undefined {
-    const cacheRoute = this.getCacheRoute(host, path);
+  protected find(
+    path: string,
+    host: string,
+    method: string,
+  ): RouterStructure | undefined {
+    const cacheRoute = this.getCacheRoute(host, path, method);
     if (cacheRoute) return cacheRoute;
 
     let node = this.findDomain(host)?.routes;
@@ -371,10 +381,11 @@ export class DomainHandler {
       }
     }
 
-    if (node.handler) {
-      (node.handler as RouterStructure).params = params;
-      this.cacheRoute(host, path, node.handler as RouterStructure);
-      return node.handler;
+    if (node.methods) {
+      const handler = node.methods[method];
+      (handler as RouterStructure).params = params;
+      this.cacheRoute(host, path, method, handler as RouterStructure);
+      return handler;
     }
 
     return undefined;
@@ -409,11 +420,10 @@ export class DomainHandler {
   private handleRequest(request: RequestHandler, response: ResponseHandler) {
     try {
       const { url, host } = request;
-      const route = this.find(url, host);
+      const route = this.find(url, host, request.method);
       if (!route) return false;
 
       request.params = route.params as Record<string, string>;
-      if (request.method !== route.method) return false;
       this.executeMiddlewares(
         route.callbacks as CallbacksRoute,
         request,

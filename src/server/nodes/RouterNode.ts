@@ -26,7 +26,7 @@ export class RouteNode {
    * node.handler = { path: '/users', method: 'GET', callbacks: [handlerFunction] };
    * ```
    */
-  handler?: RouterStructure;
+  methods?: { [key: string]: RouterStructure } = {};
 
   /**
    * Stores the name of the parameter if this node represents a dynamic segment (e.g., `:id`).

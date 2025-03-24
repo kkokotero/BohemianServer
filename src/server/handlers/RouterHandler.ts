@@ -77,7 +77,7 @@ export class RouterHandler {
       }
     }
 
-    node.handler = route;
+    node.methods![route.method] = route;
   }
 
   private create(
