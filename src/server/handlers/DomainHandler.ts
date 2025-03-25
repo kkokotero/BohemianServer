@@ -174,12 +174,9 @@ export class DomainHandler {
           const url = request.url === '/' ? 'index.html' : request.url;
           const filePath = join(staticDir as string, url);
 
-          try {
+          if (await response.file(filePath)) {
             response.file(filePath);
             isFind = true;
-          } catch (error) {
-            console.error(`Error serving static file: ${filePath}`, error);
-            response.status(500).send('Internal Server Error');
           }
         }
       }

@@ -121,9 +121,15 @@ export class ResponseHandler {
    * @param filePath - The path to the file.
    * @returns The ResponseHandler instance.
    */
-  public async file(filePath: string): Promise<this> {
-    const data = await fs.readFile(filePath);
-    return this.send(data, ResponseHandler.type(filePath));
+  // eslint-disable-next-line class-methods-use-this, consistent-return
+  public async file(filePath: string): Promise<this | boolean> {
+    try {
+      const data = await fs.readFile(filePath);
+      this.send(data, ResponseHandler.type(filePath));
+    } catch (err) {
+      return false;
+    }
+    return this;
   }
 
   /**
