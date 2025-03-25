@@ -184,8 +184,6 @@ export class DomainHandler {
       if (!isFind) {
         if (route?.['404']) {
           route['404'](request, response, () => {});
-        } else if (this.data['404']) {
-          this.data['404'](request, response, () => {});
         } else {
           response.status(404).send('Not Found');
         }

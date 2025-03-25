@@ -16,6 +16,7 @@ function middleware(req: Request, res: Response, next: Next) {
 
 const app = server({
   host: 'localhost',
+  '404': (req: Request, res: Response) => res.send(':('),
   staticUrl: join(import.meta.dirname, 'assets', 'd1'),
   domains: [
     {
