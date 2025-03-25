@@ -11,12 +11,22 @@ export interface SSL {
   /**
    * Private key for SSL encryption.
    * Can be a string or an array of strings.
+   *
+   * Example:
+   * ```typescript
+   * { key: "path/to/key.pem" }
+   * ```
    */
   key: string | string[];
 
   /**
    * SSL certificate for the domain.
    * Can be a string or an array of strings.
+   *
+   * Example:
+   * ```typescript
+   * { cert: "path/to/cert.pem" }
+   * ```
    */
   cert: string | string[];
 }
@@ -95,12 +105,12 @@ export interface DomainStructure {
    * ```typescript
    * {
    *   domains: [
-   *     { host: "sub.example.com" }
+   *     { host: "example", routes: [{ path: "/sub", callbacks: [subHandler] }] }
    *   ]
    * }
    * ```
    */
-  domains?: sudDomain[];
+  domains?: SubDomainStructure[];
 
   /**
    * Specifies the keep-alive timeout in milliseconds.
@@ -133,9 +143,25 @@ export interface DomainStructure {
   cacheSize?: number;
 }
 
-export interface sudDomain {
+/**
+ * Represents the configuration of a subdomain.
+ */
+export interface SubDomainStructure {
   /**
-   * List of route configurations for this domain.
+   * The hostname for the subdomain.
+   * If not specified, it will match any host.
+   * Only the subdomain name is needed, as the system will automatically generate the full domain.
+   * For example, if you set "example" and the main domain is "localhost", the final domain will be "example.localhost".
+   *
+   * Example:
+   * ```typescript
+   * { host: "example" }
+   * ```
+   */
+  host: string;
+
+  /**
+   * List of route configurations for this subdomain.
    *
    * Example:
    * ```typescript
@@ -145,13 +171,32 @@ export interface sudDomain {
   routes?: RouterStructure[];
 
   /**
-   * The hostname for the domain.
-   * If not specified, it will match any host.
+   * Callbacks that will be executed before processing requests.
    *
    * Example:
    * ```typescript
-   * { host: "example.com" }
+   * { uses: [someMiddleware] }
    * ```
    */
-  host: string;
+  uses?: CallbacksRoute;
+
+  /**
+   * The base URL for serving static files.
+   *
+   * Example:
+   * ```typescript
+   * { staticUrl: join(process.cwd(), "/static") }
+   * ```
+   */
+  staticUrl?: string;
+
+  /**
+   * Defines a custom 404 error handler for unmatched routes.
+   *
+   * Example:
+   * ```typescript
+   * { "404": customNotFoundHandler }
+   * ```
+   */
+  '404'?: CallbackRoute;
 }

@@ -1,18 +1,35 @@
 # Bohemian Server
 
-During a university project, I was challenged to create an "old-fashioned" server without relying on external frameworks. The goal was to dive deep into building web servers using **Node.js** and to understand each of its components from scratch. Inspired by Node.js's native server, I decided to implement advanced features that not only replicated but also extended traditional functionality.
+Bohemian Server was born as a university challenge to create an "old-fashioned" server without relying on external frameworks. The idea was to delve into building web servers with **Node.js** and understand each of its components from scratch. Inspired by Node.js's native server, I decided to implement advanced features that not only replicate but also extend traditional functionality.
 
-The process involved extensive research in areas such as route management, security, monitoring systems integration, and the creation of utilities to streamline development. As a result, Bohemian Server emerged with functionalities including:
+The experience involved extensive research on route management, security, monitoring system integration, and developing utilities to streamline the process. As a result, Bohemian Server offers the following functionalities:
 
-- Management of domains and subdomains.
-- A routing system based on Trie structures (TRI-based routing system) for fast and efficient searches.
-- Complementary utilities such as a basic logger, a token system, a reactive data watcher, CORS, input validators, and a cache manager.
+- **Management of domains and subdomains.**
+- **Routing system based on Trie structures:**  
+  It uses Trie structures to achieve fast and efficient searches, optimizing performance in projects with numerous endpoints.
+- **Additional utilities:**  
+  These include a basic logger, token system, reactive data observer, CORS support, input validators, and a cache manager based on the **RLU** (*Recent, Least-used*) method, ideal for the efficient management of cached resources.
 
-This learning journey allowed me to refine server control, enhance route management, and create a modular environment adaptable to various needs. The following documentation is designed to offer a detailed, narrative guide for each API component—from basic configuration to advanced utilities.
+This documentation details every component of the API, from basic configuration to advanced utilities, allowing developers to understand and adapt the server to various needs.
 
 ---
 
-## Creating a Basic Server
+## Table of Contents
+
+- [Basic Server](#basic-server)
+- [Using Middleware in Requests](#using-middleware-in-requests)
+- [Integration of Middleware (CORS)](#integration-of-middleware-cors)
+- [SSL Configuration for Secure Connections](#ssl-configuration-for-secure-connections)
+- [Route and Domain Management](#route-and-domain-management)
+  - [Custom Domain Configuration](#custom-domain-configuration)
+  - [Example: Handling a Subdomain](#example-handling-a-subdomain)
+- [Advanced Server Configuration](#advanced-server-configuration)
+- [Cache Manager with RLU Method](#cache-manager-with-rlu-method)
+- [License and Contributions](#license-and-contributions)
+
+---
+
+## Basic Server
 
 The following example shows how to set up a basic server that defines a GET route for the root endpoint (`"/"`) and responds with a simple message:
 
@@ -22,16 +39,17 @@ import { Request, Response } from 'bohemian-server/types';
 
 const app = server();
 
-// Define a GET route for the root endpoint that sends a message.
+// GET route for the root endpoint
 app.get('/', (request: Request, response: Response) => {
   response.send('Hello, World!');
 });
 
+// POST route that responds with the request body
 app.post('/', async (request: Request, response: Response) => {
   response.send(await request.body);
 });
 
-// Start the server on port 3000.
+// Start the server on port 3000
 app.listen(3000, () => {
   console.log('The server is running on http://localhost:3000');
 });
@@ -41,7 +59,12 @@ app.listen(3000, () => {
 
 ## Using Middleware in Requests
 
-To demonstrate how to incorporate middleware, the following example adds a function that logs each incoming request to the console:
+Bohemian Server allows you to incorporate two types of middleware:
+
+- **Custom middleware:** Your own functions for specific tasks (e.g., logging, validation).
+- **Pre-existing utilities:** Built-in middleware, such as handling CORS.
+
+In the following example, a middleware that logs each incoming request to the console is added:
 
 ```typescript
 import server from 'bohemian-server/core';
@@ -54,12 +77,12 @@ function middleware(request: Request, response: Response, next: Next) {
   next();
 }
 
-// Define a GET route for the root endpoint using the middleware.
+// GET route with custom middleware
 app.get('/', middleware, (request: Request, response: Response) => {
   response.send('Hello, World!');
 });
 
-// Start the server on port 3000.
+// Start the server on port 3000
 app.listen(3000, () => {
   console.log('The server is running on http://localhost:3000');
 });
@@ -67,9 +90,9 @@ app.listen(3000, () => {
 
 ---
 
-## Middleware Integration (CORS)
+## Integration of Middleware (CORS)
 
-Handling requests from different origins is essential in web development. Bohemian Server seamlessly integrates a **CORS** middleware that applies to all defined routes:
+Handling requests from different origins is essential in web applications. Bohemian Server integrates middleware for **CORS** that is applied globally:
 
 ```typescript
 import { cors } from 'bohemian-server/utils';
@@ -78,14 +101,14 @@ import { Request, Response } from 'bohemian-server/types';
 
 const app = server();
 
-// Apply the CORS middleware to allow cross-origin requests.
+// Apply CORS middleware to all routes
 app.use(cors);
 
 app.get('/', (request: Request, response: Response) => {
   response.send('Hello, World!');
 });
 
-// Start the server on port 3000.
+// Start the server on port 3000
 app.listen(3000, () => {
   console.log('The server is running on http://localhost:3000');
 });
@@ -93,32 +116,31 @@ app.listen(3000, () => {
 
 ---
 
-## SSL Configuration for Secure Servers
+## SSL Configuration for Secure Connections
 
-In scenarios requiring secure connections, Bohemian Server allows you to directly configure SSL:
+In scenarios requiring secure connections, Bohemian Server allows you to configure SSL directly:
 
 ```typescript
-import { SSL } from 'bohemian-server/types';
 import server from 'bohemian-server/core';
-import { Request, Response } from 'bohemian-server/types';
+import { SSL, Request, Response } from 'bohemian-server/types';
 import { join } from 'path';
 
 const app = server();
 
-// Configure SSL options with the path to your private key and certificate.
+// Configure SSL options with the path to your private key and certificate
 const sslOptions: SSL = {
   key: join(process.cwd(), 'path-to-your-private-key.pem'),
   cert: join(process.cwd(), 'path-to-your-certificate.pem'),
 };
 
-// Apply the SSL configuration to the server.
+// Apply the SSL configuration to the server
 app.ssl(sslOptions);
 
 app.get('/', (request: Request, response: Response) => {
   response.send('Hello, World!');
 });
 
-// Start the server on port 3000 using HTTPS.
+// Start the server on port 3000 using HTTPS
 app.listen(3000, () => {
   console.log('The server is running on https://localhost:3000');
 });
@@ -128,7 +150,48 @@ app.listen(3000, () => {
 
 ## Route and Domain Management
 
-Bohemian Server allows for modular management of routes and domains. In the following example, a specific subdomain is defined so that requests to `http://example.localhost:3000/` are handled separately:
+Bohemian Server allows you to manage routes and domains in a modular way. This makes it easier to handle requests directed to different domains or subdomains.
+
+> **Note:** To use custom domains, make sure to configure them on your operating system.
+
+### Custom Domain Configuration
+
+To access custom domains (e.g., `example.localhost`), modify your system's `hosts` file:
+
+**Windows:**
+
+1. Open *Notepad* as **Administrator**.
+2. Edit the file `C:\Windows\System32\drivers\etc\hosts`.
+3. Add the following line:
+
+   ```bash
+   127.0.0.1 example.localhost
+   ```
+
+4. Save and close.
+
+**Linux / Mac:**
+
+1. Open a terminal and run:
+
+   ```bash
+   sudo nano /etc/hosts
+   ```
+
+2. Add the following line:
+
+   ```bash
+   127.0.0.1 example.localhost
+   ```
+
+3. Save and close (Ctrl + X, Y, Enter).
+
+**Clear DNS Cache (if necessary):**
+
+- **Windows:** `ipconfig /flushdns`
+- **Mac/Linux:** `sudo dscacheutil -flushcache`
+
+### Example: Handling a Subdomain
 
 ```typescript
 import server from 'bohemian-server/core';
@@ -136,10 +199,10 @@ import { Request, Response } from 'bohemian-server/types';
 
 const app = server({ host: 'localhost' });
 
-// Define a subdomain (for example, 'example').
-// This allows the URL to be: http://example.localhost:3000/
-app.domain('example').get('/', (request: Request, response: Response) => {
-  response.send('Hello, World!');
+// Define a subdomain (e.g., 'example')
+// The resulting URL will be: http://example.localhost:3000/
+app.domain({ host: 'example' }).get('/', (request: Request, response: Response) => {
+    response.send('Hello, World!');
 });
 
 app.listen(3000, () => {
@@ -147,24 +210,21 @@ app.listen(3000, () => {
 });
 ```
 
+After configuring your system, you can access `http://example.localhost:3000/` just as you would `localhost`.
+
 ---
 
 ## Advanced Server Configuration
 
-Bohemian Server is designed so that all configuration is performed in a centralized and declarative manner. This approach allows you to define the complete server configuration—middleware usage, routes, domains, and security options—in a single object:
+Bohemian Server adopts a centralized and declarative approach to configuration. This allows you to define the entire server setup—middleware, routes, domains, and security options—in a single object.
 
 ```typescript
 import { Request, Response } from 'bohemian-server/types';
 import server from 'bohemian-server/core';
 import { cors } from 'bohemian-server/utils';
 
-// Create the server by passing a complete configuration object.
+// Create the server with a complete configuration
 const app = server({
-  https: true,
-  ssl: {
-    key: '/path/to/your/private-key.pem',
-    cert: '/path/to/your/certificate.pem',
-  },
   uses: [cors],
   routes: [
     {
@@ -172,7 +232,7 @@ const app = server({
       path: '/',
       callbacks: [
         (request: Request, response: Response) => {
-          response.send('Hello, World!');
+          response.send('Hello, World in Index!');
         },
       ],
     },
@@ -180,13 +240,14 @@ const app = server({
   domains: [
     {
       host: 'example',
+      uses: [cors],
       routes: [
         {
           method: 'GET',
           path: '/',
           callbacks: [
             (request: Request, response: Response) => {
-              response.send('Hello, World!');
+              response.send('Hello, World in example!');
             },
           ],
         },
@@ -194,18 +255,26 @@ const app = server({
     },
   ],
 });
+
+app.listen(3000, () => {
+  console.log('Listening on port 3000');
+});
 ```
+
+---
+
+## Cache Manager with RLU Method
+
+The cache manager in Bohemian Server uses the **RLU** (*Recent, Least-used*) method, optimizing cache management by retaining the most recent data and removing the least used. This ensures optimal performance and efficient resource usage.
 
 ---
 
 ## License and Contributions
 
-Bohemian Server is an open-source project distributed under the [MIT License](https://opensource.org/licenses/MIT). This license allows any developer to use, modify, and distribute the library freely, provided that the license notice is included in any copies or distributions of the software.
+Bohemian Server is an open-source project distributed under the [MIT License](https://opensource.org/licenses/MIT). This license allows any developer to use, modify, and distribute the library, as long as the license notice is maintained.
 
-Contributions, suggestions, and any type of feedback that help improve Bohemian Server’s quality and functionality are greatly appreciated. You can contribute by submitting pull requests, opening issues, or sharing your ideas with the community.
+Contributions, suggestions, and feedback are very welcome. You can collaborate by submitting *pull requests*, opening issues, or sharing your ideas with the community.
 
 ---
 
-Bohemian Server was born as a personal challenge to gain a deep understanding of how web servers operate in Node.js. With a modular, elegant, and efficient approach, this library not only simplifies the creation and configuration of servers but also adapts to the needs of projects of various scales. The documentation presented here aims to inspire other developers to explore, experiment, and contribute to this ever-evolving project.
-
-> Any help and feedback are welcome to continue improving Bohemian Server!
+Bohemian Server emerged as a personal challenge to thoroughly understand how web servers work in Node.js. With a modular, elegant, and efficient approach, this library simplifies the creation and configuration of servers, adapting to projects of any scale. All help and feedback are welcome to continuously improve this evolving project!

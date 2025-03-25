@@ -1,15 +1,20 @@
+/* eslint-disable prefer-destructuring */
+/* eslint-disable no-restricted-syntax */
+/* eslint-disable class-methods-use-this */
+/* eslint-disable no-param-reassign */
+/* eslint-disable no-plusplus */
 import * as http from 'http';
 import * as https from 'https';
 import { join } from 'path';
+import * as dns from 'dns';
 import type {
   DomainStructure,
   SSL,
-  sudDomain,
+  SubDomainStructure,
 } from '../../interfaces/DomainStructure';
 import { DomainThree } from '../nodes/RouterNode';
 import { RouterHandler } from './RouterHandler';
 import { RequestHandler } from './RequestHandler';
-// eslint-disable-next-line import/no-cycle
 import { ResponseHandler } from './ResponseHandler';
 import { LRUCache } from '../utils/LRUCache';
 import type {
@@ -25,28 +30,47 @@ import type {
 export class DomainHandler {
   private domains: DomainThree = new DomainThree(); // Trie structure to manage domains and subdomains
 
-  private routeCache: LRUCache<string, RouterStructure>; // Cache for routes to improve performance
+  private routeCache: LRUCache<
+    string,
+    {
+      route: RouterStructure;
+      uses: CallbacksRoute | undefined;
+      staticUrl: string | undefined;
+      '404': CallbackRoute | undefined;
+      find: boolean;
+    }
+  >; // Cache for routes to improve performance
 
   /**
    * Constructor initializes the DomainHandler with optional domain configuration.
    * @param data - Configuration object for the domain (host, routes, SSL, etc.).
    */
   constructor(private data: DomainStructure = {}) {
-    // Set default host to 'localhost' if not provided
-    // eslint-disable-next-line no-param-reassign
-    data.host = data.host || 'localhost';
-    this.domain(data.host);
-
     // Initialize middleware array if not provided
-    // eslint-disable-next-line no-param-reassign
     data.uses = data.uses || [];
 
     if (data.https) {
       this.https();
     } else {
       // Set HTTPS to false by default
-      // eslint-disable-next-line no-param-reassign
       data.https = false;
+    }
+
+    // Set default host to 'localhost' if not provided
+    data.host = data.host || 'localhost';
+    if (this.checkDomain(data.host)) {
+      let node = this.domains;
+      const segments = data.host.split('.').reverse();
+
+      for (const segment of segments) {
+        if (!node.children.has(segment)) {
+          node.children.set(segment, new DomainThree());
+        }
+        node = node.children.get(segment)!;
+      }
+      node.uses = data.uses;
+      node.staticUrl = data.staticUrl;
+      node['404'] = data['404'];
     }
 
     // Add routes if provided
@@ -57,16 +81,37 @@ export class DomainHandler {
     }
 
     if (data.domains) {
-      data.domains.forEach((domain: sudDomain) => {
-        const router = this.domain(domain.host);
+      data.domains.forEach((domain: SubDomainStructure) => {
+        const router = this.domain(domain);
         domain.routes?.forEach((route: RouterStructure) => router.route(route));
       });
     }
 
     // Initialize LRU cache for routes
-    this.routeCache = new LRUCache<string, RouterStructure>(
-      data.cacheSize || 500,
-    );
+    this.routeCache = new LRUCache<
+      string,
+      {
+        route: RouterStructure;
+        uses: CallbacksRoute | undefined;
+        staticUrl: string | undefined;
+        '404': CallbackRoute | undefined;
+        find: boolean;
+      }
+    >(data.cacheSize || 500);
+  }
+
+  /**
+   * Checks if the domain is valid by performing a DNS lookup.
+   * @param host - The domain or subdomain to check.
+   * @returns True if the domain is valid, otherwise throws an error.
+   */
+  private checkDomain(host: string): boolean {
+    dns.lookup(host, (err) => {
+      if (err) {
+        throw new Error(`Domain lookup failed, ${host}`);
+      }
+    });
+    return true;
   }
 
   /**
@@ -81,6 +126,10 @@ export class DomainHandler {
     return server;
   }
 
+  /**
+   * Returns the server instance.
+   * @returns The HTTP/HTTPS server instance.
+   */
   get value() {
     return this.start();
   }
@@ -113,23 +162,32 @@ export class DomainHandler {
       const request = new RequestHandler(req);
       const response = new ResponseHandler(res);
 
-      let isFind = this.handleRequest(request, response);
+      let isFind = false;
 
-      if (!isFind && this.data?.staticUrl) {
-        const url = request.url === '/' ? 'index.html' : request.url;
-        const filePath = join(this.data.staticUrl, url);
+      const data = this.handleRequest(request, response);
+      if (data) {
+        isFind = data?.find;
+        if (!isFind) {
+          if (data.staticUrl || this.data.staticUrl) {
+            const staticDir = data.staticUrl || this.data.staticUrl;
+            const url = request.url === '/' ? 'index.html' : request.url;
+            const filePath = join(staticDir as string, url);
 
-        try {
-          response.file(filePath);
-          isFind = true;
-        } catch (error) {
-          console.error(`Error serving static file: ${filePath}`, error);
-          response.status(500).send('Internal Server Error');
+            try {
+              response.file(filePath);
+              isFind = true;
+            } catch (error) {
+              console.error(`Error serving static file: ${filePath}`, error);
+              response.status(500).send('Internal Server Error');
+            }
+          }
         }
       }
 
       if (!isFind) {
-        if (this.data[404]) {
+        if (data?.[404]) {
+          data[404](request, response, () => {});
+        } else if (this.data[404]) {
           this.data[404](request, response, () => {});
         } else {
           response.status(404).send('Not Found');
@@ -147,24 +205,28 @@ export class DomainHandler {
    * @param host - The domain or subdomain to configure.
    * @returns A RouterHandler instance for the specified domain.
    */
-  public domain(host: string): RouterHandler {
+  public domain(domian: SubDomainStructure): RouterHandler {
     if (!this.data.host) {
       throw new Error('Host is not configured.');
     }
-
-    // eslint-disable-next-line no-param-reassign
+    let { host } = domian;
     host = host.includes(this.data.host) ? host : `${host}.${this.data.host}`;
-    let node = this.domains;
-    const segments = host.split('.').reverse();
+    if (this.checkDomain(host)) {
+      let node = this.domains;
+      const segments = host.split('.').reverse();
 
-    // eslint-disable-next-line no-restricted-syntax
-    for (const segment of segments) {
-      if (!node.children.has(segment)) {
-        node.children.set(segment, new DomainThree());
+      for (const segment of segments) {
+        if (!node.children.has(segment)) {
+          node.children.set(segment, new DomainThree());
+        }
+        node = node.children.get(segment)!;
       }
-      node = node.children.get(segment)!;
+      node[404] = domian[404];
+      node.uses = domian.uses || [];
+      node.staticUrl = domian.staticUrl;
+      return new RouterHandler(node.routes);
     }
-    return new RouterHandler(node.routes);
+    throw new Error('Cannot create a domain');
   }
 
   /**
@@ -312,14 +374,22 @@ export class DomainHandler {
    * Caches a route for faster lookup.
    * @param host - The host associated with the route.
    * @param path - The route path.
+   * @param method - The HTTP method.
    * @param route - The route configuration.
    */
   private cacheRoute(
     host: string,
     path: string,
     method: string,
-    route: RouterStructure,
+    route: {
+      route: RouterStructure;
+      uses: CallbacksRoute | undefined;
+      staticUrl: string | undefined;
+      '404': CallbackRoute | undefined;
+      find: boolean;
+    },
   ) {
+    if (!route.find) route.find = true;
     this.routeCache.set(`${host}-${path}-${method}`, route);
   }
 
@@ -327,13 +397,22 @@ export class DomainHandler {
    * Retrieves a cached route.
    * @param host - The host associated with the route.
    * @param path - The route path.
+   * @param method - The HTTP method.
    * @returns The cached route or undefined if not found.
    */
   private getCacheRoute(
     host: string,
     path: string,
     method: string,
-  ): RouterStructure | undefined {
+  ):
+    | {
+        route: RouterStructure;
+        uses: CallbacksRoute | undefined;
+        staticUrl: string | undefined;
+        '404': CallbackRoute | undefined;
+        find: boolean;
+      }
+    | undefined {
     return this.routeCache.get(`${host}-${path}-${method}`);
   }
 
@@ -341,18 +420,30 @@ export class DomainHandler {
    * Finds a route for the given path and host.
    * @param path - The route path.
    * @param host - The host associated with the route.
+   * @param method - The HTTP method.
    * @returns The route configuration or undefined if not found.
    */
   protected find(
     path: string,
     host: string,
     method: string,
-  ): RouterStructure | undefined {
+  ):
+    | {
+        route: RouterStructure;
+        uses: CallbacksRoute | undefined;
+        staticUrl: string | undefined;
+        '404': CallbackRoute | undefined;
+        find: boolean;
+      }
+    | undefined {
     const cacheRoute = this.getCacheRoute(host, path, method);
     if (cacheRoute) return cacheRoute;
 
-    let node = this.findDomain(host)?.routes;
+    const domain = this.findDomain(host);
+    let node = domain?.routes;
     if (!node) return undefined;
+
+    let isFind = false;
 
     const urlArray = path.split('?');
     const querys = urlArray[1];
@@ -360,12 +451,12 @@ export class DomainHandler {
     const params: Record<string, string> = {};
 
     if (querys) {
-      querys!.split('&').forEach((query) => {
+      querys.split('&').forEach((query) => {
         const [key, value] = query.split('=');
         params[key!] = decodeURIComponent(value!);
       });
     }
-    // eslint-disable-next-line no-restricted-syntax
+
     for (const segment of segments as string[]) {
       if (node.children.has(segment)) {
         node = node.children.get(segment)!;
@@ -381,11 +472,25 @@ export class DomainHandler {
       }
     }
 
+    if (segments && segments.length === 0 && node.methods) {
+      isFind = true;
+    }
+
     if (node.methods) {
       const handler = node.methods[method];
-      (handler as RouterStructure).params = params;
-      this.cacheRoute(host, path, method, handler as RouterStructure);
-      return handler;
+      if (!handler) {
+        return undefined;
+      }
+      handler.params = params;
+      const data = {
+        route: handler,
+        uses: domain?.uses,
+        staticUrl: domain?.staticUrl,
+        '404': domain?.[404],
+        find: isFind,
+      };
+      this.cacheRoute(host, path, method, data);
+      return data;
     }
 
     return undefined;
@@ -398,7 +503,6 @@ export class DomainHandler {
    */
   protected findDomain(host: string) {
     let node = this.domains;
-    // eslint-disable-next-line no-restricted-syntax
     for (const segment of host.split('.').reverse()) {
       if (node.children.has(segment)) {
         node = node.children.get(segment)!;
@@ -417,27 +521,40 @@ export class DomainHandler {
    * @param response - The response object.
    * @returns True if the route is found, otherwise undefined.
    */
-  private handleRequest(request: RequestHandler, response: ResponseHandler) {
+  private handleRequest(
+    request: RequestHandler,
+    response: ResponseHandler,
+  ):
+    | {
+        route: RouterStructure;
+        uses: CallbacksRoute | undefined;
+        staticUrl: string | undefined;
+        '404': CallbackRoute | undefined;
+        find: boolean;
+      }
+    | undefined {
+    const { url, host } = request;
+    const domain = this.find(url, host, request.method);
+    const route = domain?.route;
+    if (!route && domain?.find) return domain;
     try {
-      const { url, host } = request;
-      const route = this.find(url, host, request.method);
-      if (!route) return false;
-
-      request.params = route.params as Record<string, string>;
-      this.executeMiddlewares(
-        route.callbacks as CallbacksRoute,
-        request,
-        response,
-      );
-      return true;
+      if (domain?.find) {
+        request.params = route?.params as Record<string, string>;
+        this.executeMiddlewares(
+          route?.callbacks as CallbacksRoute,
+          domain.uses || [],
+          request,
+          response,
+        );
+      }
     } catch (error) {
       console.error('Error handling request:', error);
       response.status(500).send({
         error: 'Internal Server Error',
         message: (error as Error).message,
       });
-      return false;
     }
+    return domain;
   }
 
   /**
@@ -448,22 +565,20 @@ export class DomainHandler {
    */
   private async executeMiddlewares(
     callbacks: CallbacksRoute,
+    uses: CallbacksRoute,
     req: RequestHandler,
     res: ResponseHandler,
   ): Promise<void> {
     let index = 0;
-    if (this.data?.uses) {
-      // eslint-disable-next-line no-param-reassign
-      callbacks = [...this.data.uses, ...callbacks];
+    if (uses) {
+      callbacks = [...uses, ...callbacks];
     }
 
     const next = async () => {
       if (index >= callbacks.length) return;
-      // eslint-disable-next-line no-plusplus
       const middleware = callbacks[index++] as CallbackRoute;
 
       if (index === callbacks.length) {
-        // Last middleware, no await
         middleware(req, res, next);
       } else {
         await middleware(req, res, next);
@@ -473,3 +588,9 @@ export class DomainHandler {
     await next();
   }
 }
+
+// Example usage:
+// const handler = new DomainHandler({ host: 'example.com', routes: [...] });
+// handler.listen(3000, () => console.log('Server running on port 3000'));
+// handler.use(middlewareFunction);
+// handler.get('/path', (req, res) => res.send('Hello World'));

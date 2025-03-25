@@ -1,7 +1,12 @@
+/* eslint-disable class-methods-use-this */
 /* eslint-disable no-continue */
 import http from 'http';
 import { parse, ParsedUrlQuery } from 'querystring';
 
+/**
+ * A class to handle HTTP requests, providing methods to access request details
+ * and parse the request body.
+ */
 export class RequestHandler {
   public method: string;
 
@@ -35,6 +40,10 @@ export class RequestHandler {
     | string
   >;
 
+  /**
+   * Constructs a new RequestHandler instance.
+   * @param request - The incoming HTTP request object.
+   */
   constructor(private request: http.IncomingMessage) {
     this.method = request.method || 'GET';
     this.url = request.url || '/';
@@ -47,6 +56,10 @@ export class RequestHandler {
     this._bodyPromise = this.getBodyContent();
   }
 
+  /**
+   * Checks if the request is secure (HTTPS).
+   * @returns True if the request is secure, otherwise false.
+   */
   public isSecure(): boolean {
     const proto = this.headers['x-forwarded-proto'] as string;
     if (proto?.toLowerCase() === 'https') return true;
@@ -55,6 +68,10 @@ export class RequestHandler {
     );
   }
 
+  /**
+   * Parses cookies from the request headers.
+   * @returns An object containing the cookies.
+   */
   public cookies(): Record<string, string> {
     return (
       this.headers.cookie?.split(';').reduce(
@@ -68,10 +85,27 @@ export class RequestHandler {
     );
   }
 
-  get body() {
+  /**
+   * Returns a promise that resolves to the parsed request body.
+   * @returns A promise that resolves to the parsed body content.
+   */
+  get body(): Promise<
+    | { [key: string]: string }
+    | Record<string, string>
+    | ParsedUrlQuery
+    | {
+        fields: Record<string, string>;
+        files: Record<string, { filename: string; content: Buffer }>;
+      }
+    | string
+  > {
     return this._bodyPromise;
   }
 
+  /**
+   * Reads and processes the request body content.
+   * @returns A promise that resolves to the parsed body content.
+   */
   private async getBodyContent(): Promise<
     | Record<string, string>
     | ParsedUrlQuery
@@ -84,7 +118,7 @@ export class RequestHandler {
     return new Promise((resolve, reject) => {
       const chunks: Buffer[] = [];
 
-      // Registrar listeners primero
+      // Register listeners first
       this.request.on('data', (chunk) => {
         chunks.push(chunk);
       });
@@ -108,11 +142,16 @@ export class RequestHandler {
         reject(err);
       });
 
-      // Activar el flujo después de registrar los listeners
+      // Activate the flow after registering the listeners
       this.request.resume();
     });
   }
 
+  /**
+   * Processes the request body based on the content type.
+   * @param buffer - The buffer containing the request body.
+   * @returns The parsed body content.
+   */
   private processBody(buffer: Buffer):
     | Record<string, string>
     | ParsedUrlQuery
@@ -127,7 +166,6 @@ export class RequestHandler {
       // JSON
       if (contentType.includes('application/json')) {
         const jsonString = buffer.toString(RequestHandler.TEXT_ENCODING);
-
         return JSON.parse(jsonString.replace(/'/g, '"'));
       }
 
@@ -143,19 +181,29 @@ export class RequestHandler {
         return this.parseMultipart(buffer, boundary);
       }
 
-      // Texto plano
+      // Plain text
       return buffer.toString(RequestHandler.TEXT_ENCODING);
     } catch (error) {
       throw new Error(`Failed to process body: ${(error as Error).message}`);
     }
   }
 
-  // eslint-disable-next-line class-methods-use-this
+  /**
+   * Extracts the boundary string from the content type header.
+   * @param contentType - The content type header value.
+   * @returns The boundary string or undefined if not found.
+   */
   private getBoundary(contentType: string): string | undefined {
     const boundaryMatch = contentType.match(/boundary=("?)([^;]+)\1/i);
     return boundaryMatch?.[2];
   }
 
+  /**
+   * Parses a multipart form-data request body.
+   * @param buffer - The buffer containing the request body.
+   * @param boundary - The boundary string used to separate parts.
+   * @returns An object containing the parsed fields and files.
+   */
   private parseMultipart(
     buffer: Buffer,
     boundary: string,
@@ -203,7 +251,11 @@ export class RequestHandler {
     return result;
   }
 
-  // eslint-disable-next-line class-methods-use-this
+  /**
+   * Parses the headers of a multipart form-data part.
+   * @param headerSection - The header section of a part.
+   * @returns An object containing the parsed headers.
+   */
   private parsePartHeaders(headerSection: string): Record<string, string> {
     return Object.fromEntries(
       headerSection.split('\r\n').map((line) => {
@@ -213,3 +265,9 @@ export class RequestHandler {
     );
   }
 }
+
+// Example usage:
+// const handler = new RequestHandler(req);
+// handler.isSecure(); // Check if the request is secure
+// handler.cookies(); // Get cookies from the request
+// handler.body.then(body => console.log(body)); // Get and process the request body

@@ -1,3 +1,5 @@
+/* eslint-disable no-restricted-syntax */
+/* eslint-disable class-methods-use-this */
 import {
   CallbacksRoute,
   RouterStructure,
@@ -12,28 +14,61 @@ import { RouteNode } from '../nodes/RouterNode';
  * and dynamically add them to a tree-based structure.
  */
 export class RouterHandler {
+  /**
+   * Constructs a new RouterHandler instance.
+   * @param routes - The root node of the route tree structure.
+   */
   constructor(private routes: RouteNode) {}
 
+  /**
+   * Adds a route to the router.
+   * @param route - The route configuration to add.
+   * @returns The RouterHandler instance for chaining.
+   */
   public route(route: RouterStructure) {
     this.add(route);
     return this;
   }
 
+  /**
+   * Defines a GET route.
+   * @param path - The route path.
+   * @param callbacks - Middleware functions for the route.
+   * @returns The RouterHandler instance for chaining.
+   */
   public async get(path: string, ...callbacks: CallbacksRoute): Promise<this> {
     this.create('GET', path, ...callbacks);
     return this;
   }
 
+  /**
+   * Defines a POST route.
+   * @param path - The route path.
+   * @param callbacks - Middleware functions for the route.
+   * @returns The RouterHandler instance for chaining.
+   */
   public async post(path: string, ...callbacks: CallbacksRoute): Promise<this> {
     this.create('POST', path, ...callbacks);
     return this;
   }
 
+  /**
+   * Defines a PUT route.
+   * @param path - The route path.
+   * @param callbacks - Middleware functions for the route.
+   * @returns The RouterHandler instance for chaining.
+   */
   public async put(path: string, ...callbacks: CallbacksRoute): Promise<this> {
     this.create('PUT', path, ...callbacks);
     return this;
   }
 
+  /**
+   * Defines a DELETE route.
+   * @param path - The route path.
+   * @param callbacks - Middleware functions for the route.
+   * @returns The RouterHandler instance for chaining.
+   */
   public async delete(
     path: string,
     ...callbacks: CallbacksRoute
@@ -42,6 +77,12 @@ export class RouterHandler {
     return this;
   }
 
+  /**
+   * Defines a PATCH route.
+   * @param path - The route path.
+   * @param callbacks - Middleware functions for the route.
+   * @returns The RouterHandler instance for chaining.
+   */
   public async patch(
     path: string,
     ...callbacks: CallbacksRoute
@@ -50,6 +91,12 @@ export class RouterHandler {
     return this;
   }
 
+  /**
+   * Defines an OPTIONS route.
+   * @param path - The route path.
+   * @param callbacks - Middleware functions for the route.
+   * @returns The RouterHandler instance for chaining.
+   */
   public async options(
     path: string,
     ...callbacks: CallbacksRoute
@@ -58,11 +105,14 @@ export class RouterHandler {
     return this;
   }
 
+  /**
+   * Adds a route to the tree structure.
+   * @param route - The route configuration to add.
+   */
   private add(route: RouterStructure) {
     let node: RouteNode = this.routes;
     const segments = route.path.split('/').filter(Boolean);
 
-    // eslint-disable-next-line no-restricted-syntax
     for (const segment of segments) {
       const isParam = segment.startsWith(':');
       const key = isParam ? '*' : segment;
@@ -73,13 +123,19 @@ export class RouterHandler {
 
       node = node.children.get(key)!;
       if (isParam) {
-        node.paramName = segment.slice(1); // Guardar el nombre del parámetro
+        node.paramName = segment.slice(1); // Save the parameter name
       }
     }
 
     node.methods![route.method] = route;
   }
 
+  /**
+   * Creates a route with the specified method and path.
+   * @param method - The HTTP method for the route.
+   * @param path - The route path.
+   * @param callbacks - Middleware functions for the route.
+   */
   private create(
     method: 'GET' | 'POST' | 'PUT' | 'DELETE' | 'PATCH' | 'OPTIONS',
     path: string,
@@ -94,9 +150,19 @@ export class RouterHandler {
     this.add(routeData);
   }
 
-  // eslint-disable-next-line class-methods-use-this
+  /**
+   * Normalizes the route path.
+   * Ensures the path starts with a '/' and removes any trailing slashes.
+   * @param path - The route path to normalize.
+   * @returns The normalized path.
+   */
   private normalizePath(path: string): string {
     const cleanedPath = path.replace(/\/+/g, '/').replace(/\/$/, '');
     return cleanedPath.startsWith('/') ? cleanedPath : `/${cleanedPath}`;
   }
 }
+
+// Example usage:
+// const router = new RouterHandler(new RouteNode());
+// router.get('/example', (req, res) => res.send('Hello, world!'));
+// router.post('/submit', (req, res) => res.send('Data received'));

@@ -3,6 +3,7 @@ import type { RequestHandler } from '../server/handlers/RequestHandler';
 
 /**
  * Type representing the function to proceed to the next middleware in the chain.
+ * This function is called to pass control to the next middleware function in the stack.
  */
 export type Next = () => void;
 
@@ -53,7 +54,7 @@ export interface RouterStructure {
    *
    * Example:
    * ```typescript
-   * { path: "/api/users/:userId" }
+   * { path: "/api/users/\:userId" }
    * ```
    */
   path: string;
@@ -85,5 +86,14 @@ export interface RouterStructure {
    */
   method: 'GET' | 'POST' | 'PUT' | 'DELETE' | 'PATCH' | 'OPTIONS';
 
+  /**
+   * Optional parameters extracted from the URL path.
+   * These parameters are captured from the route pattern and can be used within the callback functions.
+   *
+   * Example:
+   * ```typescript
+   * { params: { userId: "123" } }
+   * ```
+   */
   params?: Record<string, string>;
 }
