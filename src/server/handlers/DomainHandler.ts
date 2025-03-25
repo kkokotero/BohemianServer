@@ -34,7 +34,7 @@ export class DomainHandler {
     string,
     {
       route: RouterStructure;
-      uses: CallbacksRoute | undefined;
+      uses: CallbacksRoute;
       staticUrl: string | undefined;
       '404': CallbackRoute | undefined;
       find: boolean;
@@ -92,7 +92,7 @@ export class DomainHandler {
       string,
       {
         route: RouterStructure;
-        uses: CallbacksRoute | undefined;
+        uses: CallbacksRoute;
         staticUrl: string | undefined;
         '404': CallbackRoute | undefined;
         find: boolean;
@@ -164,31 +164,31 @@ export class DomainHandler {
 
       let isFind = false;
 
-      const data = this.handleRequest(request, response);
-      if (data) {
-        isFind = data?.find;
-        if (!isFind) {
-          if (data.staticUrl || this.data.staticUrl) {
-            const staticDir = data.staticUrl || this.data.staticUrl;
-            const url = request.url === '/' ? 'index.html' : request.url;
-            const filePath = join(staticDir as string, url);
+      const route = this.handleRequest(request, response);
+      isFind = route?.find || false;
+      if (!isFind) {
+        if (route?.staticUrl || this.data.staticUrl) {
+          const staticDir = route?.staticUrl
+            ? route.staticUrl
+            : this.data.staticUrl;
+          const url = request.url === '/' ? 'index.html' : request.url;
+          const filePath = join(staticDir as string, url);
 
-            try {
-              response.file(filePath);
-              isFind = true;
-            } catch (error) {
-              console.error(`Error serving static file: ${filePath}`, error);
-              response.status(500).send('Internal Server Error');
-            }
+          try {
+            response.file(filePath);
+            isFind = true;
+          } catch (error) {
+            console.error(`Error serving static file: ${filePath}`, error);
+            response.status(500).send('Internal Server Error');
           }
         }
       }
 
       if (!isFind) {
-        if (data?.[404]) {
-          data[404](request, response, () => {});
-        } else if (this.data[404]) {
-          this.data[404](request, response, () => {});
+        if (route?.['404']) {
+          route['404'](request, response, () => {});
+        } else if (this.data['404']) {
+          this.data['404'](request, response, () => {});
         } else {
           response.status(404).send('Not Found');
         }
@@ -382,15 +382,26 @@ export class DomainHandler {
     path: string,
     method: string,
     route: {
-      route: RouterStructure;
+      route: RouterStructure | undefined;
       uses: CallbacksRoute | undefined;
       staticUrl: string | undefined;
       '404': CallbackRoute | undefined;
       find: boolean;
     },
   ) {
-    if (!route.find) route.find = true;
-    this.routeCache.set(`${host}-${path}-${method}`, route);
+    if (route !== undefined) {
+      if (!route.find) route.find = true;
+      this.routeCache.set(
+        `${host}-${path}-${method}`,
+        route as {
+          route: RouterStructure;
+          uses: CallbacksRoute;
+          staticUrl: string | undefined;
+          '404': CallbackRoute | undefined;
+          find: boolean;
+        },
+      );
+    }
   }
 
   /**
@@ -407,7 +418,7 @@ export class DomainHandler {
   ):
     | {
         route: RouterStructure;
-        uses: CallbacksRoute | undefined;
+        uses: CallbacksRoute;
         staticUrl: string | undefined;
         '404': CallbackRoute | undefined;
         find: boolean;
@@ -429,71 +440,86 @@ export class DomainHandler {
     method: string,
   ):
     | {
-        route: RouterStructure;
-        uses: CallbacksRoute | undefined;
+        route: RouterStructure | undefined;
+        uses: CallbacksRoute;
         staticUrl: string | undefined;
         '404': CallbackRoute | undefined;
         find: boolean;
       }
     | undefined {
+    // Validar que se reciban parámetros no vacíos
+    if (!path || !host || !method) return undefined;
+
+    // Verificar si existe en la caché
     const cacheRoute = this.getCacheRoute(host, path, method);
     if (cacheRoute) return cacheRoute;
 
+    // Buscar el dominio correspondiente
     const domain = this.findDomain(host);
-    let node = domain?.routes;
-    if (!node) return undefined;
+    if (!domain) return undefined;
 
+    // Inicializar nodo y parámetros
+    let node = domain.routes;
     let isFind = false;
-
-    const urlArray = path.split('?');
-    const querys = urlArray[1];
-    const segments = urlArray[0]?.split('/').filter(Boolean);
+    const data: {
+      route: RouterStructure | undefined;
+      uses: CallbacksRoute;
+      staticUrl: string | undefined;
+      '404': CallbackRoute | undefined;
+      find: boolean;
+    } = {
+      route: undefined,
+      uses: domain.uses,
+      staticUrl: domain.staticUrl,
+      '404': domain['404'],
+      find: isFind,
+    };
     const params: Record<string, string> = {};
 
+    // Separar la ruta y los querys
+    const [basePath, querys] = path.split('?');
+    const segments = basePath!.split('/').filter(Boolean);
+
+    // Procesar parámetros de la query string
     if (querys) {
       querys.split('&').forEach((query) => {
         const [key, value] = query.split('=');
-        params[key!] = decodeURIComponent(value!);
+        if (key && value) {
+          params[key] = decodeURIComponent(value);
+        }
       });
     }
 
-    for (const segment of segments as string[]) {
+    // Recorrer los segmentos de la ruta
+    for (const segment of segments) {
       if (node.children.has(segment)) {
         node = node.children.get(segment)!;
       } else if (node.children.has('*')) {
         node = node.children.get('*')!;
-        params[node.paramName!] = segment;
+        // Si el nodo dinámico tiene un nombre de parámetro, asignarlo
+        if (node.paramName) {
+          params[node.paramName] = segment;
+        }
       } else {
-        return undefined;
-      }
-
-      if (node.paramName) {
-        params[node.paramName] = segment;
+        // Si no se encuentra coincidencia exacta ni comodín, se retorna undefined
+        return data;
       }
     }
 
-    if (segments && segments.length === 0 && node.methods) {
+    // Marcar "find" solo si la ruta fue encontrada y tiene métodos disponibles
+    if (node.methods && node.methods[method]) {
       isFind = true;
-    }
-
-    if (node.methods) {
+      // Inyectar los parámetros en el handler encontrado
       const handler = node.methods[method];
-      if (!handler) {
-        return undefined;
-      }
       handler.params = params;
-      const data = {
-        route: handler,
-        uses: domain?.uses,
-        staticUrl: domain?.staticUrl,
-        '404': domain?.[404],
-        find: isFind,
-      };
+      data.route = handler as RouterStructure;
+      // Cachear el resultado para próximas búsquedas
       this.cacheRoute(host, path, method, data);
       return data;
     }
 
-    return undefined;
+    // En caso de que la ruta exista pero no tenga métodos definidos, se retorna undefined
+    return data;
   }
 
   /**
@@ -526,7 +552,7 @@ export class DomainHandler {
     response: ResponseHandler,
   ):
     | {
-        route: RouterStructure;
+        route: RouterStructure | undefined;
         uses: CallbacksRoute | undefined;
         staticUrl: string | undefined;
         '404': CallbackRoute | undefined;
@@ -536,9 +562,12 @@ export class DomainHandler {
     const { url, host } = request;
     const domain = this.find(url, host, request.method);
     const route = domain?.route;
-    if (!route && domain?.find) return domain;
+    if (route === undefined) {
+      this.executeMiddlewares([], domain?.uses || [], request, response);
+      return domain;
+    }
     try {
-      if (domain?.find) {
+      if (domain?.find && domain.route !== undefined) {
         request.params = route?.params as Record<string, string>;
         this.executeMiddlewares(
           route?.callbacks as CallbacksRoute,
