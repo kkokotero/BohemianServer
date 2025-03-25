@@ -14,20 +14,35 @@ This documentation details every component of the API, from basic configuration 
 
 ---
 
-## Table of Contents
+## Installation
 
-- [Basic Server](#basic-server)
-- [Using Middleware in Requests](#using-middleware-in-requests)
-- [Integration of Middleware (CORS)](#integration-of-middleware-cors)
-- [SSL Configuration for Secure Connections](#ssl-configuration-for-secure-connections)
-- [Route and Domain Management](#route-and-domain-management)
-  - [Custom Domain Configuration](#custom-domain-configuration)
-  - [Example: Handling a Subdomain](#example-handling-a-subdomain)
-- [Advanced Server Configuration](#advanced-server-configuration)
-- [Cache Manager with RLU Method](#cache-manager-with-rlu-method)
-- [License and Contributions](#license-and-contributions)
+To install **Bohemian Server**, you can use either **npm** or **yarn**. Follow the steps below:
+
+### Using npm
+
+To install Bohemian Server via npm, run the following command in your project directory:
+
+```bash
+npm install bohemian-server
+```
+
+### Using yarn
+
+Alternatively, if you're using yarn, run this command:
+
+```bash
+yarn add bohemian-server
+```
+
+Once installed, you can start using Bohemian Server in your Node.js application by importing it as follows:
+
+```typescript
+import server from 'bohemian-server/core';
+```
 
 ---
+
+Este bloque de código se puede agregar al inicio del README para facilitar la instalación a los usuarios.
 
 ## Basic Server
 
