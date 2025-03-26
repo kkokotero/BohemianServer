@@ -36,6 +36,17 @@ const app = server({
       host: 'api',
       uses: [cors, middleware],
       staticUrl: join(import.meta.dirname, 'assets', 'd2'),
+      routes: [
+        {
+          method: 'GET',
+          path: '/get',
+          callbacks: [
+            (req: Request, res: Response) => {
+              res.send(`Hello, World in ${req.host} subdomain!`);
+            },
+          ],
+        },
+      ],
     },
   ],
 });

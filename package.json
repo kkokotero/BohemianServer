@@ -1,13 +1,14 @@
 {
   "name": "bohemian-server",
-  "version": "1.3.10",
+  "version": "1.4.0",
   "description": "Bohemian Server, library for http and https server management",
   "module": "index.ts",
   "type": "module",
   "scripts": {
     "build": "tsc -p tsconfig.json && tsc-alias -p tsconfig.json",
     "lint": "eslint .",
-    "test": "jest ."
+    "test": "jest .",
+    "upload": "tsc -p tsconfig.json && tsc-alias -p tsconfig.json && npm publish"
   },
   "main": "dist/core.js",
   "types": "dist/core.d.ts",

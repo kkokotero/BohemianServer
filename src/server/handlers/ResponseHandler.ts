@@ -70,6 +70,7 @@ export class ResponseHandler {
   constructor(
     private readonly request: http.IncomingMessage,
     private readonly response: http.ServerResponse,
+    private readonly doamins: string[],
     private config: ResponseHandlerConfig = {},
   ) {
     this.config = {
@@ -197,24 +198,58 @@ export class ResponseHandler {
    * de manera dinámica, usando el origen de la petición cuando es posible.
    * @returns The ResponseHandler instance.
    */
-  public enableCors(): this {
+  public enableCors(extraDomains: string[] = []): this {
     const requestOrigin = this.request.headers.origin;
-    // Si la petición tiene origen, se utiliza ese; de lo contrario se asigna un origen seguro por defecto.
-    const allowedOrigin =
-      requestOrigin &&
-      /^(https?):\/\/([a-z0-9-]+\.)?[a-z0-9-]+\.[a-z]+(:\d+)?/i.test(
-        requestOrigin,
-      )
-        ? requestOrigin
-        : 'http://localhost';
 
-    return (
-      this.header('Access-Control-Allow-Origin', allowedOrigin)
+    if (!requestOrigin) {
+      return this.header('Access-Control-Allow-Origin', 'http://localhost')
         .header('Access-Control-Allow-Methods', this.config.allowedMethods!)
         .header('Access-Control-Allow-Headers', this.config.allowedHeaders!)
-        // Solo se permite el uso de credenciales si el origen no es "*"
-        .header('Access-Control-Allow-Credentials', 'true')
-    );
+        .header('Access-Control-Allow-Credentials', 'true');
+    }
+
+    try {
+      const url = new URL(requestOrigin);
+      const domainWithPort = `${url.hostname}${url.port ? `:${url.port}` : ''}`;
+      const fullDomain = `${url.protocol}//${domainWithPort}`;
+
+      // Combinar los dominios internos con los adicionales
+      const allowedDomains = [...this.doamins, ...extraDomains];
+
+      // Verifica si el dominio está en la lista permitida
+      const isAllowed = allowedDomains.some((allowedDomain) => {
+        // Si el dominio en la lista es un dominio simple (sin http, https)
+        if (!allowedDomain.includes('://')) {
+          return (
+            domainWithPort === allowedDomain || url.hostname === allowedDomain
+          );
+        }
+        // Si la lista tiene un dominio con protocolo, compara toda la URL
+        return fullDomain === allowedDomain;
+      });
+
+      if (isAllowed) {
+        return this.header('Access-Control-Allow-Origin', requestOrigin)
+          .header('Access-Control-Allow-Methods', this.config.allowedMethods!)
+          .header('Access-Control-Allow-Headers', this.config.allowedHeaders!)
+          .header('Access-Control-Allow-Credentials', 'true');
+      }
+    } catch (error) {
+      console.error('Error parsing request origin:', error);
+    }
+
+    // Si el dominio no está en la lista permitida, usar un valor por defecto
+    return this.header('Access-Control-Allow-Origin', 'http://localhost')
+      .header('Access-Control-Allow-Methods', this.config.allowedMethods!)
+      .header('Access-Control-Allow-Headers', this.config.allowedHeaders!)
+      .header('Access-Control-Allow-Credentials', 'true');
+  }
+
+  public enablePublicCors(): this {
+    return this.header('Access-Control-Allow-Origin', '*')
+      .header('Access-Control-Allow-Methods', this.config.allowedMethods!)
+      .header('Access-Control-Allow-Headers', this.config.allowedHeaders!)
+      .header('Access-Control-Allow-Credentials', 'false'); // No es necesario en una API totalmente pública
   }
 
   /**

@@ -7,5 +7,12 @@
     </head>
     <body>
         <h1>This is a d1</h1>
+        <p id="response">Waiting response...</p>
     </body>
+    <script>
+        fetch("http://api.localhost:3000/get").then(async (response) => {
+            document.getElementById("response").textContent =
+                "Response received: " + (await response.text());
+        });
+    </script>
 </html>

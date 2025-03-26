@@ -30,6 +30,8 @@ import type {
 export class DomainHandler {
   private domains: DomainThree = new DomainThree(); // Trie structure to manage domains and subdomains
 
+  private domainsUrl: string[] = [];
+
   private routeCache: LRUCache<
     string,
     {
@@ -72,6 +74,8 @@ export class DomainHandler {
       node.staticUrl = data.staticUrl;
       node['404'] = data['404'];
     }
+
+    this.domainsUrl.push(data.host);
 
     // Add routes if provided
     if (data.routes) {
@@ -160,7 +164,7 @@ export class DomainHandler {
       res: http.ServerResponse,
     ) => {
       const request = new RequestHandler(req);
-      const response = new ResponseHandler(req, res);
+      const response = new ResponseHandler(req, res, this.domainsUrl);
 
       let isFind = false;
 
@@ -219,6 +223,7 @@ export class DomainHandler {
       node[404] = domian[404];
       node.uses = domian.uses || [];
       node.staticUrl = domian.staticUrl;
+      this.domainsUrl.push(host);
       return new RouterHandler(node.routes);
     }
     throw new Error('Cannot create a domain');
