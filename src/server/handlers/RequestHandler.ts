@@ -33,10 +33,7 @@ export class RequestHandler {
   private _bodyPromise: Promise<
     | Record<string, string>
     | ParsedUrlQuery
-    | {
-        fields: Record<string, string>;
-        files: Record<string, { filename: string; content: Buffer }>;
-      }
+    | Record<string, string | Buffer<ArrayBuffer>>
     | string
   >;
 
@@ -93,10 +90,7 @@ export class RequestHandler {
     | { [key: string]: string }
     | Record<string, string>
     | ParsedUrlQuery
-    | {
-        fields: Record<string, string>;
-        files: Record<string, { filename: string; content: Buffer }>;
-      }
+    | Record<string, string | Buffer<ArrayBuffer>>
     | string
   > {
     return this._bodyPromise;
@@ -109,10 +103,7 @@ export class RequestHandler {
   private async getBodyContent(): Promise<
     | Record<string, string>
     | ParsedUrlQuery
-    | {
-        fields: Record<string, string>;
-        files: Record<string, { filename: string; content: Buffer }>;
-      }
+    | Record<string, string | Buffer<ArrayBuffer>>
     | string
   > {
     return new Promise((resolve, reject) => {
@@ -152,13 +143,12 @@ export class RequestHandler {
    * @param buffer - The buffer containing the request body.
    * @returns The parsed body content.
    */
-  private processBody(buffer: Buffer):
+  private processBody(
+    buffer: Buffer,
+  ):
     | Record<string, string>
     | ParsedUrlQuery
-    | {
-        fields: Record<string, string>;
-        files: Record<string, { filename: string; content: Buffer }>;
-      }
+    | Record<string, string | Buffer<ArrayBuffer>>
     | string {
     const contentType = this.headers['content-type'] || '';
 
@@ -207,14 +197,8 @@ export class RequestHandler {
   private parseMultipart(
     buffer: Buffer,
     boundary: string,
-  ): {
-    fields: Record<string, string>;
-    files: Record<string, { filename: string; content: Buffer }>;
-  } {
-    const result = {
-      fields: {} as Record<string, string>,
-      files: {} as Record<string, { filename: string; content: Buffer }>,
-    };
+  ): Record<string, string | Buffer<ArrayBuffer>> {
+    const result: Record<string, string | Buffer<ArrayBuffer>> = {};
 
     const bodyStr = buffer.toString(RequestHandler.LATIN1_ENCODING);
     const parts = bodyStr.split(`--${boundary}`);
@@ -239,11 +223,9 @@ export class RequestHandler {
 
       if (name) {
         if (filename) {
-          result.files[name] = { filename, content };
+          result[name] = content;
         } else {
-          result.fields[name] = content
-            .toString(RequestHandler.TEXT_ENCODING)
-            .trim();
+          result[name] = content.toString(RequestHandler.TEXT_ENCODING).trim();
         }
       }
     }

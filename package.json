@@ -1,6 +1,6 @@
 {
   "name": "bohemian-server",
-  "version": "1.3.5",
+  "version": "1.3.6",
   "description": "Bohemian Server, library for http and https server management",
   "module": "index.ts",
   "type": "module",
