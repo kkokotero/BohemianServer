@@ -52,9 +52,6 @@ export class ResponseHandler {
     Connection: 'keep-alive',
     Pragma: 'no-cache',
     Expires: '0',
-    'Content-Security-Policy':
-      // eslint-disable-next-line max-len
-      "default-src 'self'; img-src 'self' data:; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; frame-ancestors 'self';",
   };
 
   /** Default allowed HTTP methods */
@@ -66,10 +63,12 @@ export class ResponseHandler {
 
   /**
    * Creates an instance of ResponseHandler.
+   * @param request - The HTTP request object.
    * @param response - The HTTP response object.
    * @param config - Optional configuration for allowed methods and headers.
    */
   constructor(
+    private readonly request: http.IncomingMessage,
     private readonly response: http.ServerResponse,
     private config: ResponseHandlerConfig = {},
   ) {
@@ -95,16 +94,13 @@ export class ResponseHandler {
     contentTypeOverride?: string,
   ): Promise<this> {
     if (this.response.headersSent) {
-      console.warn('Cannot send response: it has already been sent.');
       return this;
     }
 
     // Set security headers
-    Object.entries(ResponseHandler.SECURITY_HEADERS).forEach(
-      async ([key, value]) => {
-        this.header(key, value);
-      },
-    );
+    Object.entries(ResponseHandler.SECURITY_HEADERS).forEach(([key, value]) => {
+      this.header(key, value);
+    });
 
     // Determine the content type
     const contentType = contentTypeOverride || this.detectContentType(data);
@@ -116,16 +112,24 @@ export class ResponseHandler {
     return this;
   }
 
+  public end() {
+    Object.entries(ResponseHandler.SECURITY_HEADERS).forEach(([key, value]) => {
+      this.header(key, value);
+    });
+
+    this.response.end();
+    return this;
+  }
+
   /**
    * Reads and sends a file response.
    * @param filePath - The path to the file.
    * @returns The ResponseHandler instance.
    */
-  // eslint-disable-next-line class-methods-use-this, consistent-return
   public async file(filePath: string): Promise<this | boolean> {
     try {
       const data = await fs.readFile(filePath);
-      this.send(data, ResponseHandler.type(filePath));
+      await this.send(data, ResponseHandler.type(filePath));
     } catch (err) {
       return false;
     }
@@ -185,14 +189,28 @@ export class ResponseHandler {
   }
 
   /**
-   * Enables Cross-Origin Resource Sharing (CORS).
-   * @param origin - Allowed origin (default: "*").
+   * Enables Cross-Origin Resource Sharing (CORS) y establece una política de seguridad de contenido (CSP)
+   * de manera dinámica, usando el origen de la petición cuando es posible.
    * @returns The ResponseHandler instance.
    */
-  public enableCors(origin = '*'): this {
-    return this.header('Access-Control-Allow-Origin', origin)
-      .header('Access-Control-Allow-Methods', this.config.allowedMethods!)
-      .header('Access-Control-Allow-Headers', this.config.allowedHeaders!);
+  public enableCors(): this {
+    const requestOrigin = this.request.headers.origin;
+    // Si la petición tiene origen, se utiliza ese; de lo contrario se asigna un origen seguro por defecto.
+    const allowedOrigin =
+      requestOrigin &&
+      /^(https?):\/\/([a-z0-9-]+\.)?[a-z0-9-]+\.[a-z]+(:\d+)?/i.test(
+        requestOrigin,
+      )
+        ? requestOrigin
+        : 'http://localhost';
+
+    return (
+      this.header('Access-Control-Allow-Origin', allowedOrigin)
+        .header('Access-Control-Allow-Methods', this.config.allowedMethods!)
+        .header('Access-Control-Allow-Headers', this.config.allowedHeaders!)
+        // Solo se permite el uso de credenciales si el origen no es "*"
+        .header('Access-Control-Allow-Credentials', 'true')
+    );
   }
 
   /**

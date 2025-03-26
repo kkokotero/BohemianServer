@@ -89,11 +89,11 @@ export class RequestHandler {
   get body(): Promise<
     | { [key: string]: string }
     | Record<string, string>
-    | ParsedUrlQuery
     | Record<string, string | Buffer<ArrayBuffer>>
-    | string
   > {
-    return this._bodyPromise;
+    return this._bodyPromise as Promise<
+      Record<string, string | Buffer<ArrayBuffer>>
+    >;
   }
 
   /**
@@ -101,10 +101,7 @@ export class RequestHandler {
    * @returns A promise that resolves to the parsed body content.
    */
   private async getBodyContent(): Promise<
-    | Record<string, string>
-    | ParsedUrlQuery
-    | Record<string, string | Buffer<ArrayBuffer>>
-    | string
+    Record<string, string> | Record<string, string | Buffer<ArrayBuffer>>
   > {
     return new Promise((resolve, reject) => {
       const chunks: Buffer[] = [];
@@ -145,11 +142,7 @@ export class RequestHandler {
    */
   private processBody(
     buffer: Buffer,
-  ):
-    | Record<string, string>
-    | ParsedUrlQuery
-    | Record<string, string | Buffer<ArrayBuffer>>
-    | string {
+  ): Record<string, string> | Record<string, string | Buffer<ArrayBuffer>> {
     const contentType = this.headers['content-type'] || '';
 
     try {
@@ -161,7 +154,14 @@ export class RequestHandler {
 
       // Form URL-encoded
       if (contentType.includes('application/x-www-form-urlencoded')) {
-        return parse(buffer.toString(RequestHandler.TEXT_ENCODING));
+        const parsedData = parse(buffer.toString(RequestHandler.TEXT_ENCODING));
+        const dictionary: Record<string, string> = Object.fromEntries(
+          Object.entries(parsedData).map(([key, value]) => [
+            key,
+            String(value),
+          ]),
+        );
+        return dictionary;
       }
 
       // Multipart
@@ -172,7 +172,7 @@ export class RequestHandler {
       }
 
       // Plain text
-      return buffer.toString(RequestHandler.TEXT_ENCODING);
+      return { data: buffer.toString(RequestHandler.TEXT_ENCODING) };
     } catch (error) {
       throw new Error(`Failed to process body: ${(error as Error).message}`);
     }

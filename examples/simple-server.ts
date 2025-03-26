@@ -31,7 +31,8 @@ app.get('/', (request: Request, response: Response) => {
  * @param {Response} response - The HTTP response object.
  */
 app.post('/', async (request: Request, response: Response) => {
-  response.send(await request.body);
+  const body = await request.body;
+  response.send(body.id);
 });
 
 /**

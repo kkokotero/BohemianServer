@@ -2,6 +2,7 @@
 import { join } from 'path';
 import server from '../src/core';
 import { Request, Response, Next } from '../src/types';
+import { cors } from '../src/utils';
 
 /**
  * Initializes and configures an HTTP server with subdomain support using Bohemian Server.
@@ -16,12 +17,13 @@ function middleware(req: Request, res: Response, next: Next) {
 
 const app = server({
   host: 'localhost',
+  uses: [cors],
   '404': (req: Request, res: Response) => res.send(':('),
   staticUrl: join(import.meta.dirname, 'assets', 'd1'),
   domains: [
     {
-      host: 'example',
-      uses: [middleware],
+      host: 'api',
+      uses: [cors, middleware],
       staticUrl: join(import.meta.dirname, 'assets', 'd2'),
     },
   ],

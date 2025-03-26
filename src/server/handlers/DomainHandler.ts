@@ -160,7 +160,7 @@ export class DomainHandler {
       res: http.ServerResponse,
     ) => {
       const request = new RequestHandler(req);
-      const response = new ResponseHandler(res);
+      const response = new ResponseHandler(req, res);
 
       let isFind = false;
 
