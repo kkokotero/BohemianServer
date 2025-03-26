@@ -83,6 +83,10 @@ export class ResponseHandler {
     global.deflateAsync = global.deflateAsync || promisify(deflate);
   }
 
+  public async write(data: unknown) {
+    this.response.write(data);
+  }
+
   /**
    * Sends a response with the provided data.
    * @param data - The content to be sent.

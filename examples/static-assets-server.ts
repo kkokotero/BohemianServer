@@ -20,6 +20,17 @@ const app = server({
   uses: [cors],
   '404': (req: Request, res: Response) => res.send(':('),
   staticUrl: join(import.meta.dirname, 'assets', 'd1'),
+  routes: [
+    {
+      method: 'GET',
+      path: '/get',
+      callbacks: [
+        (req: Request, res: Response) => {
+          res.send(`Hello, World in ${req.host} domain!`);
+        },
+      ],
+    },
+  ],
   domains: [
     {
       host: 'api',

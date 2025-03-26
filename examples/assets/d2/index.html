@@ -7,10 +7,12 @@
     </head>
     <body>
         <h1>This is a d2</h1>
+        <p id="response">Waiting response...</p>
     </body>
     <script>
-        fetch("http://localhost:3000/").then((response) =>
-            console.log(response)
-        );
+        fetch("http://localhost:3000/get").then(async (response) => {
+            document.getElementById("response").textContent =
+                "Response received: " + (await response.text());
+        });
     </script>
 </html>

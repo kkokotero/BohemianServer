@@ -1,7 +1,7 @@
 /* eslint-disable class-methods-use-this */
 /* eslint-disable no-continue */
 import http from 'http';
-import { parse, ParsedUrlQuery } from 'querystring';
+import { parse } from 'querystring';
 
 /**
  * A class to handle HTTP requests, providing methods to access request details
@@ -30,12 +30,7 @@ export class RequestHandler {
 
   private static readonly LATIN1_ENCODING = 'latin1';
 
-  private _bodyPromise: Promise<
-    | Record<string, string>
-    | ParsedUrlQuery
-    | Record<string, string | Buffer<ArrayBuffer>>
-    | string
-  >;
+  private _bodyPromise: Promise<Record<string, string | ArrayBuffer>>;
 
   /**
    * Constructs a new RequestHandler instance.
@@ -86,14 +81,8 @@ export class RequestHandler {
    * Returns a promise that resolves to the parsed request body.
    * @returns A promise that resolves to the parsed body content.
    */
-  get body(): Promise<
-    | { [key: string]: string }
-    | Record<string, string>
-    | Record<string, string | Buffer<ArrayBuffer>>
-  > {
-    return this._bodyPromise as Promise<
-      Record<string, string | Buffer<ArrayBuffer>>
-    >;
+  get body(): Promise<Record<string, string | ArrayBuffer>> {
+    return this._bodyPromise as Promise<Record<string, string | ArrayBuffer>>;
   }
 
   /**
@@ -101,7 +90,7 @@ export class RequestHandler {
    * @returns A promise that resolves to the parsed body content.
    */
   private async getBodyContent(): Promise<
-    Record<string, string> | Record<string, string | Buffer<ArrayBuffer>>
+    Record<string, string | ArrayBuffer>
   > {
     return new Promise((resolve, reject) => {
       const chunks: Buffer[] = [];
@@ -140,9 +129,7 @@ export class RequestHandler {
    * @param buffer - The buffer containing the request body.
    * @returns The parsed body content.
    */
-  private processBody(
-    buffer: Buffer,
-  ): Record<string, string> | Record<string, string | Buffer<ArrayBuffer>> {
+  private processBody(buffer: Buffer): Record<string, string | ArrayBuffer> {
     const contentType = this.headers['content-type'] || '';
 
     try {
@@ -197,8 +184,8 @@ export class RequestHandler {
   private parseMultipart(
     buffer: Buffer,
     boundary: string,
-  ): Record<string, string | Buffer<ArrayBuffer>> {
-    const result: Record<string, string | Buffer<ArrayBuffer>> = {};
+  ): Record<string, string | ArrayBuffer> {
+    const result: Record<string, string | ArrayBuffer> = {};
 
     const bodyStr = buffer.toString(RequestHandler.LATIN1_ENCODING);
     const parts = bodyStr.split(`--${boundary}`);
@@ -223,7 +210,7 @@ export class RequestHandler {
 
       if (name) {
         if (filename) {
-          result[name] = content;
+          result[name] = content.buffer;
         } else {
           result[name] = content.toString(RequestHandler.TEXT_ENCODING).trim();
         }
