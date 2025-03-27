@@ -171,12 +171,9 @@ export class DomainHandler {
       const route = this.handleRequest(request, response);
       isFind = route?.find || false;
       if (!isFind) {
-        if (route?.staticUrl || this.data.staticUrl) {
-          const staticDir = route?.staticUrl
-            ? route.staticUrl
-            : this.data.staticUrl;
+        if (route?.staticUrl) {
           const url = request.url === '/' ? 'index.html' : request.url;
-          const filePath = join(staticDir as string, url);
+          const filePath = join(route?.staticUrl as string, url);
 
           if (await response.file(filePath)) {
             response.file(filePath);
