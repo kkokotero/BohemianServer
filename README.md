@@ -35,6 +35,13 @@ import server from "bohemian-server/core";
 
 ---
 
+## GitHub Repository
+
+- GitHub Repository: [Bohemian Server on GitHub](https://github.com/kkokotero/BohemianServer)
+- NPM Package: [Bohemian Server on NPM](https://www.npmjs.com/package/bohemian-server)
+
+---
+
 ## Basic Example
 
 Create a simple server that responds to GET and POST requests:
