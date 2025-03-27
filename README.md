@@ -121,7 +121,7 @@ Below is an improved English version of the example that demonstrates how to con
 
 ---
 
-#### To Allow the Domain to Receive Requests from Anywhere
+### Allowing the Domain to Receive Requests from Anywhere
 
 ```typescript
 import server from "bohemian-server/core";
@@ -131,27 +131,27 @@ const app = server();
 
 /**
  * Public route: Accessible from any origin.
- * This route explicitly enables public CORS to allow cross-origin requests.
+ * Explicitly enables public CORS to allow cross-origin requests.
  */
 app.get("/public", (req: Request, res: Response) => {
-    res.enablePublicCors();
+    res.enablePublicCors(); // Allows unrestricted access from any origin.
     res.send("Hello, World from a public route!");
 });
 
 /**
- * Private route: Accessible only from the configured domain.
- * No CORS modification is applied here, restricting access to the domain.
+ * Private route: Only accessible from the same domain.
+ * No CORS modifications are applied, restricting access to internal requests.
  */
 app.get("/private", (req: Request, res: Response) => {
     res.send("Hello, World from a private route!");
 });
 
 /**
- * Domain/Subdomain route: Accessible from the domain and its subdomains.
- * This route enables CORS for the domain and its subdomains.
+ * Domain/Subdomain route: Allows requests from the domain and its subdomains.
+ * Enables CORS with restricted access to these origins.
  */
 app.get("/", (req: Request, res: Response) => {
-    res.enableCors();
+    res.enableCors(); // Grants access only to the domain and its subdomains.
     res.send("Hello, World from a domain/subdomain route!");
 });
 
@@ -160,7 +160,43 @@ app.listen(3000, () => {
 });
 ```
 
-> This clear separation helps you manage access levels based on your application's needs.
+---
+
+### Server-Side Configuration
+
+```typescript
+import server from "bohemian-server/core";
+import { Request, Response } from "bohemian-server/types";
+
+const app = server({
+    // Configures the server as public, allowing requests from any origin.
+    communication: "public",
+    domains: [
+        {
+            host: "api",
+            // Allows requests only from other connected domains within the server.
+            communication: "connected",
+        },
+        {
+            host: "example",
+            communication: "connected",
+            // Restricts requests to the specified origins only.
+            connectTo: ["localhost"],
+        },
+        {
+            host: "example",
+            // This domain is completely isolated and does not receive requests from any origin.
+            communication: "isolated",
+        },
+    ],
+});
+
+app.listen(3000, () => {
+    console.log("Server running at http://localhost:3000");
+});
+```
+
+> This configuration allows you to manage different access levels based on your application's needs, ensuring both flexibility and security.
 
 ---
 
