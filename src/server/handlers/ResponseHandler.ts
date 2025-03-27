@@ -1,3 +1,5 @@
+/* eslint-disable no-nested-ternary */
+/* eslint-disable class-methods-use-this */
 import { extname } from 'path';
 import http from 'http';
 import { pipeline } from 'stream/promises';
@@ -65,6 +67,7 @@ export class ResponseHandler {
    * Creates an instance of ResponseHandler.
    * @param request - The HTTP request object.
    * @param response - The HTTP response object.
+   * @param doamins - List of allowed domains for CORS.
    * @param config - Optional configuration for allowed methods and headers.
    */
   constructor(
@@ -84,6 +87,10 @@ export class ResponseHandler {
     global.deflateAsync = global.deflateAsync || promisify(deflate);
   }
 
+  /**
+   * Writes data to the response stream.
+   * @param data - The data to write.
+   */
   public async write(data: unknown) {
     this.response.write(data);
   }
@@ -117,6 +124,9 @@ export class ResponseHandler {
     return this;
   }
 
+  /**
+   * Ends the response without sending any data.
+   */
   public end() {
     Object.entries(ResponseHandler.SECURITY_HEADERS).forEach(([key, value]) => {
       this.header(key, value);
@@ -130,6 +140,11 @@ export class ResponseHandler {
    * Reads and sends a file response.
    * @param filePath - The path to the file.
    * @returns The ResponseHandler instance.
+   *
+   * Example:
+   * ```typescript
+   * await response.file('/path/to/file.txt');
+   * ```
    */
   public async file(filePath: string): Promise<this | boolean> {
     try {
@@ -146,6 +161,11 @@ export class ResponseHandler {
    * @param data - The content to be compressed.
    * @param encoding - Compression algorithm: "gzip" or "deflate".
    * @returns The ResponseHandler instance.
+   *
+   * Example:
+   * ```typescript
+   * await response.compress('Hello, World!', 'gzip');
+   * ```
    */
   public async compress(
     data: string | Buffer,
@@ -170,6 +190,11 @@ export class ResponseHandler {
    * @param filePath - The path to the file.
    * @param fileName - The name of the file to be downloaded.
    * @returns The ResponseHandler instance.
+   *
+   * Example:
+   * ```typescript
+   * await response.download('/path/to/file.txt', 'download.txt');
+   * ```
    */
   public async download(filePath: string, fileName: string): Promise<this> {
     try {
@@ -186,6 +211,11 @@ export class ResponseHandler {
    * @param url - The target URL.
    * @param status - The HTTP status code for redirection (default: 302).
    * @returns The ResponseHandler instance.
+   *
+   * Example:
+   * ```typescript
+   * response.redirect('https://example.com', 301);
+   * ```
    */
   public redirect(url: string, status: 301 | 302 | 307 = 302) {
     return this.status(status)
@@ -194,18 +224,21 @@ export class ResponseHandler {
   }
 
   /**
-   * Enables Cross-Origin Resource Sharing (CORS) y establece una política de seguridad de contenido (CSP)
-   * de manera dinámica, usando el origen de la petición cuando es posible.
+   * Enables Cross-Origin Resource Sharing (CORS) and sets a Content Security Policy (CSP)
+   * dynamically, using the request origin when possible.
+   * @param extraDomains - Additional domains to allow.
    * @returns The ResponseHandler instance.
+   *
+   * Example:
+   * ```typescript
+   * response.enableCors(['another-domain.com']);
+   * ```
    */
   public enableCors(extraDomains: string[] = []): this {
     const requestOrigin = this.request.headers.origin;
 
     if (!requestOrigin) {
-      return this.header('Access-Control-Allow-Origin', 'http://localhost')
-        .header('Access-Control-Allow-Methods', this.config.allowedMethods!)
-        .header('Access-Control-Allow-Headers', this.config.allowedHeaders!)
-        .header('Access-Control-Allow-Credentials', 'true');
+      return this.enablePublicCors();
     }
 
     try {
@@ -213,22 +246,15 @@ export class ResponseHandler {
       const domainWithPort = `${url.hostname}${url.port ? `:${url.port}` : ''}`;
       const fullDomain = `${url.protocol}//${domainWithPort}`;
 
-      // Combinar los dominios internos con los adicionales
-      const allowedDomains = [...this.doamins, ...extraDomains];
+      // Combine internal domains with additional ones
+      const allowedDomains = new Set([...this.doamins, ...extraDomains]);
 
-      // Verifica si el dominio está en la lista permitida
-      const isAllowed = allowedDomains.some((allowedDomain) => {
-        // Si el dominio en la lista es un dominio simple (sin http, https)
-        if (!allowedDomain.includes('://')) {
-          return (
-            domainWithPort === allowedDomain || url.hostname === allowedDomain
-          );
-        }
-        // Si la lista tiene un dominio con protocolo, compara toda la URL
-        return fullDomain === allowedDomain;
-      });
-
-      if (isAllowed) {
+      // Check if the domain is in the allowed list
+      if (
+        allowedDomains.has(domainWithPort) ||
+        allowedDomains.has(url.hostname) ||
+        allowedDomains.has(fullDomain)
+      ) {
         return this.header('Access-Control-Allow-Origin', requestOrigin)
           .header('Access-Control-Allow-Methods', this.config.allowedMethods!)
           .header('Access-Control-Allow-Headers', this.config.allowedHeaders!)
@@ -238,18 +264,19 @@ export class ResponseHandler {
       console.error('Error parsing request origin:', error);
     }
 
-    // Si el dominio no está en la lista permitida, usar un valor por defecto
-    return this.header('Access-Control-Allow-Origin', 'http://localhost')
-      .header('Access-Control-Allow-Methods', this.config.allowedMethods!)
-      .header('Access-Control-Allow-Headers', this.config.allowedHeaders!)
-      .header('Access-Control-Allow-Credentials', 'true');
+    // If the domain is not in the allowed list, use a default value
+    return this.enablePublicCors();
   }
 
+  /**
+   * Enables public CORS by allowing all origins.
+   * @returns The ResponseHandler instance.
+   */
   public enablePublicCors(): this {
     return this.header('Access-Control-Allow-Origin', '*')
       .header('Access-Control-Allow-Methods', this.config.allowedMethods!)
       .header('Access-Control-Allow-Headers', this.config.allowedHeaders!)
-      .header('Access-Control-Allow-Credentials', 'false'); // No es necesario en una API totalmente pública
+      .header('Access-Control-Allow-Credentials', 'false');
   }
 
   /**
@@ -257,6 +284,11 @@ export class ResponseHandler {
    * @param name - The header name.
    * @param value - The header value.
    * @returns The ResponseHandler instance.
+   *
+   * Example:
+   * ```typescript
+   * response.header('X-Custom-Header', 'CustomValue');
+   * ```
    */
   public header(name: string, value: string): this {
     if (!this.response.headersSent) {
@@ -270,6 +302,11 @@ export class ResponseHandler {
    * @param code - The HTTP status code.
    * @param message - Optional status message.
    * @returns The ResponseHandler instance.
+   *
+   * Example:
+   * ```typescript
+   * response.status(404, 'Not Found');
+   * ```
    */
   public status(code: number, message?: string): this {
     if (!this.response.headersSent) {
@@ -283,6 +320,12 @@ export class ResponseHandler {
    * Determines the MIME type for a file based on its extension.
    * @param filePath - The file path.
    * @returns The MIME type.
+   *
+   * Example:
+   * ```typescript
+   * const mimeType = Response.type('/path/to/file.png');
+   * console.log(mimeType); // Output: 'image/png'
+   * ```
    */
   public static type(filePath: string): string {
     return (
@@ -291,9 +334,12 @@ export class ResponseHandler {
     );
   }
 
-  // eslint-disable-next-line class-methods-use-this
+  /**
+   * Detects the content type based on the data type.
+   * @param data - The data to detect the content type for.
+   * @returns The content type.
+   */
   private detectContentType(data: unknown): string {
-    // eslint-disable-next-line no-nested-ternary
     return Buffer.isBuffer(data)
       ? (ResponseHandler.CONTENT_TYPES.octet as string)
       : typeof data === 'string'
@@ -301,9 +347,13 @@ export class ResponseHandler {
         : (ResponseHandler.CONTENT_TYPES.json as string);
   }
 
-  // eslint-disable-next-line class-methods-use-this
+  /**
+   * Serializes data based on the content type.
+   * @param data - The data to serialize.
+   * @param contentType - The content type.
+   * @returns The serialized data.
+   */
   private serializeData(data: unknown, contentType: string): string | Buffer {
-    // eslint-disable-next-line no-nested-ternary
     return Buffer.isBuffer(data)
       ? data
       : contentType.includes('json')
@@ -311,6 +361,11 @@ export class ResponseHandler {
         : String(data);
   }
 
+  /**
+   * Handles errors by sending an error response.
+   * @param error - The error object.
+   * @param status - The HTTP status code (default: 500).
+   */
   private handleError(error: Error, status: number = 500): void {
     this.status(status)
       .header('Content-Type', 'text/plain')

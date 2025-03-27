@@ -1,3 +1,32 @@
+/**
+ * A route callback function that handles a single request.
+ * Typically, it accepts the Request, Response, and a Next function to pass control.
+ *
+ * @callback CallbackRoute
+ * @param {Request} request - The incoming request object.
+ * @param {Response} response - The outgoing response object.
+ * @param {Next} [next] - Optional function to pass control to the next middleware.
+ */
+
+/**
+ * A list of route callback functions.
+ *
+ * @typedef {CallbackRoute[]} CallbacksRoute
+ */
+
+/**
+ * Defines the structure of a route.
+ *
+ * This interface specifies how individual routes are configured.
+ * It includes properties such as the HTTP method, route path, and the callbacks to be executed.
+ *
+ * @typedef {Object} RouterStructure
+ * @property {string} method - The HTTP method (e.g., GET, POST).
+ * @property {string} path - The route path.
+ * @property {CallbacksRoute} callbacks - An array of callback functions for the route.
+ */
+
+// The above types are imported from './RouterStructure'
 import {
   CallbackRoute,
   CallbacksRoute,
@@ -5,12 +34,12 @@ import {
 } from './RouterStructure';
 
 /**
- * Represents SSL configuration for a domain.
+ * Represents SSL configuration for a domain, allowing secure HTTPS connections.
  */
 export interface SSL {
   /**
    * Private key for SSL encryption.
-   * Can be a string or an array of strings.
+   * Can be a string or an array of strings for multiple keys.
    *
    * Example:
    * ```typescript
@@ -21,7 +50,7 @@ export interface SSL {
 
   /**
    * SSL certificate for the domain.
-   * Can be a string or an array of strings.
+   * Can be a string or an array of strings for multiple certificates.
    *
    * Example:
    * ```typescript
@@ -32,12 +61,12 @@ export interface SSL {
 }
 
 /**
- * Represents the structure of a domain configuration.
+ * Defines the configuration structure for a domain.
  */
 export interface DomainStructure {
   /**
-   * The hostname for the domain.
-   * If not specified, it will match any host.
+   * The primary hostname for the domain.
+   * If undefined, it matches any host.
    *
    * Example:
    * ```typescript
@@ -47,19 +76,17 @@ export interface DomainStructure {
   host?: string;
 
   /**
-   * SSL configuration for secure HTTPS connections.
+   * SSL configuration for enabling HTTPS.
    *
    * Example:
    * ```typescript
-   * {
-   *   ssl: { key: "path/to/key.pem", cert: "path/to/cert.pem" }
-   * }
+   * { ssl: { key: "path/to/key.pem", cert: "path/to/cert.pem" } }
    * ```
    */
   ssl?: SSL;
 
   /**
-   * Indicates whether HTTPS should be used.
+   * Specifies if HTTPS should be used.
    *
    * Example:
    * ```typescript
@@ -69,7 +96,7 @@ export interface DomainStructure {
   https?: boolean;
 
   /**
-   * Callbacks that will be executed before processing requests.
+   * Middleware functions executed before handling requests.
    *
    * Example:
    * ```typescript
@@ -79,7 +106,7 @@ export interface DomainStructure {
   uses?: CallbacksRoute;
 
   /**
-   * The base URL for serving static files.
+   * Base directory for serving static files.
    *
    * Example:
    * ```typescript
@@ -89,7 +116,7 @@ export interface DomainStructure {
   staticUrl?: string;
 
   /**
-   * List of route configurations for this domain.
+   * Route definitions specific to this domain.
    *
    * Example:
    * ```typescript
@@ -113,7 +140,7 @@ export interface DomainStructure {
   domains?: SubDomainStructure[];
 
   /**
-   * Specifies the keep-alive timeout in milliseconds.
+   * Keep-alive timeout duration in milliseconds.
    *
    * Example:
    * ```typescript
@@ -123,7 +150,7 @@ export interface DomainStructure {
   keepAliveTimeout?: number;
 
   /**
-   * Defines a custom 404 error handler for unmatched routes.
+   * Custom 404 error handler for undefined routes.
    *
    * Example:
    * ```typescript
@@ -133,7 +160,7 @@ export interface DomainStructure {
   '404'?: CallbackRoute;
 
   /**
-   * Specifies the maximum size of the cache for this domain.
+   * Maximum cache size for the domain.
    *
    * Example:
    * ```typescript
@@ -144,14 +171,14 @@ export interface DomainStructure {
 }
 
 /**
- * Represents the configuration of a subdomain.
+ * Defines the configuration for a subdomain.
  */
 export interface SubDomainStructure {
   /**
-   * The hostname for the subdomain.
-   * If not specified, it will match any host.
-   * Only the subdomain name is needed, as the system will automatically generate the full domain.
-   * For example, if you set "example" and the main domain is "localhost", the final domain will be "example.localhost".
+   * The subdomain name. The full domain is generated automatically.
+   *
+   * Example: If "host" is "example" and the main domain is "localhost",
+   * the resulting domain will be "example.localhost".
    *
    * Example:
    * ```typescript
@@ -161,7 +188,7 @@ export interface SubDomainStructure {
   host: string;
 
   /**
-   * List of route configurations for this subdomain.
+   * Route configurations for this subdomain.
    *
    * Example:
    * ```typescript
@@ -171,7 +198,7 @@ export interface SubDomainStructure {
   routes?: RouterStructure[];
 
   /**
-   * Callbacks that will be executed before processing requests.
+   * Middleware functions executed before handling requests.
    *
    * Example:
    * ```typescript
@@ -181,7 +208,7 @@ export interface SubDomainStructure {
   uses?: CallbacksRoute;
 
   /**
-   * The base URL for serving static files.
+   * Base directory for serving static files.
    *
    * Example:
    * ```typescript
@@ -191,7 +218,7 @@ export interface SubDomainStructure {
   staticUrl?: string;
 
   /**
-   * Defines a custom 404 error handler for unmatched routes.
+   * Custom 404 error handler for undefined routes.
    *
    * Example:
    * ```typescript
