@@ -35,10 +35,12 @@ export class DomainHandler {
   private routeCache: LRUCache<
     string,
     {
-      route: RouterStructure;
+      route: RouterStructure | undefined;
       uses: CallbacksRoute;
       staticUrl: string | undefined;
       '404': CallbackRoute | undefined;
+      communication: string | undefined;
+      connectTo: string | string[] | undefined;
       find: boolean;
     }
   >; // Cache for routes to improve performance
@@ -73,6 +75,8 @@ export class DomainHandler {
       node.uses = data.uses;
       node.staticUrl = data.staticUrl;
       node['404'] = data['404'];
+      node.communication = data.communication;
+      node.connectTo = data.connectTo;
     }
 
     this.domainsUrl.push(data.host);
@@ -95,10 +99,12 @@ export class DomainHandler {
     this.routeCache = new LRUCache<
       string,
       {
-        route: RouterStructure;
+        route: RouterStructure | undefined;
         uses: CallbacksRoute;
         staticUrl: string | undefined;
         '404': CallbackRoute | undefined;
+        communication: string | undefined;
+        connectTo: string | string[] | undefined;
         find: boolean;
       }
     >(data.cacheSize || 500);
@@ -220,6 +226,8 @@ export class DomainHandler {
       node[404] = domian[404];
       node.uses = domian.uses || [];
       node.staticUrl = domian.staticUrl;
+      node.communication = domian.communication;
+      node.connectTo = domian.connectTo;
       this.domainsUrl.push(host);
       return new RouterHandler(node.routes);
     }
@@ -391,10 +399,12 @@ export class DomainHandler {
       this.routeCache.set(
         `${host}-${path}-${method}`,
         route as {
-          route: RouterStructure;
+          route: RouterStructure | undefined;
           uses: CallbacksRoute;
           staticUrl: string | undefined;
           '404': CallbackRoute | undefined;
+          communication: string | undefined;
+          connectTo: string | string[] | undefined;
           find: boolean;
         },
       );
@@ -414,10 +424,12 @@ export class DomainHandler {
     method: string,
   ):
     | {
-        route: RouterStructure;
+        route: RouterStructure | undefined;
         uses: CallbacksRoute;
         staticUrl: string | undefined;
         '404': CallbackRoute | undefined;
+        communication: string | undefined;
+        connectTo: string | string[] | undefined;
         find: boolean;
       }
     | undefined {
@@ -441,6 +453,8 @@ export class DomainHandler {
         uses: CallbacksRoute;
         staticUrl: string | undefined;
         '404': CallbackRoute | undefined;
+        communication: string | undefined;
+        connectTo: string | string[] | undefined;
         find: boolean;
       }
     | undefined {
@@ -463,6 +477,8 @@ export class DomainHandler {
       uses: CallbacksRoute;
       staticUrl: string | undefined;
       '404': CallbackRoute | undefined;
+      communication: string | undefined;
+      connectTo: string | string[] | undefined;
       find: boolean;
     } = {
       route: undefined,
@@ -470,6 +486,8 @@ export class DomainHandler {
       staticUrl: domain.staticUrl,
       '404': domain['404'],
       find: isFind,
+      communication: domain.communication,
+      connectTo: domain.connectTo,
     };
     const params: Record<string, string> = {};
 
@@ -550,15 +568,36 @@ export class DomainHandler {
   ):
     | {
         route: RouterStructure | undefined;
-        uses: CallbacksRoute | undefined;
+        uses: CallbacksRoute;
         staticUrl: string | undefined;
         '404': CallbackRoute | undefined;
+        communication: string | undefined;
+        connectTo: string | string[] | undefined;
         find: boolean;
       }
     | undefined {
     const { url, host } = request;
     const domain = this.find(url, host, request.method);
     const route = domain?.route;
+    let domains: string[] = this.domainsUrl;
+    if (domain?.connectTo) {
+      domains =
+        domain.connectTo === 'all'
+          ? this.domainsUrl
+          : (domain.connectTo as string[]);
+    }
+
+    switch (domain?.communication) {
+      case 'connected':
+        response.enableCors(domains);
+        break;
+      case 'public':
+        response.enablePublicCors();
+        break;
+      default:
+        break;
+    }
+
     if (route === undefined) {
       this.executeMiddlewares([], domain?.uses || [], request, response);
       return domain;

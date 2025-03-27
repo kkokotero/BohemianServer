@@ -10,9 +10,14 @@
         <p id="response">Waiting response...</p>
     </body>
     <script>
-        fetch("http://localhost:3000/get").then(async (response) => {
-            document.getElementById("response").textContent =
-                "Response received: " + (await response.text());
-        });
+        fetch("http://localhost:3000/get")
+            .then(async (response) => {
+                document.getElementById("response").textContent =
+                    "Response received: " + (await response.text());
+            })
+            .catch(async (response) => {
+                document.getElementById("response").textContent =
+                    "Error: " + (await response.message);
+            });
     </script>
 </html>

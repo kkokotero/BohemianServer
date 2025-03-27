@@ -168,6 +168,31 @@ export interface DomainStructure {
    * ```
    */
   cacheSize?: number;
+
+  /**
+   * Defines the communication mode for the host.
+   * - 'connected': Domain and subdomains can communicate.
+   * - 'isolated': Each subdomain operates independently.
+   * - 'public': Open communication for the host with any origin.
+   *
+   * Example:
+   * ```typescript
+   * { communication: 'connected' }
+   * ```
+   */
+  communication?: 'connected' | 'isolated' | 'public';
+
+  /**
+   * Specifies which domains this domain can connect to.
+   * - 'all': Connects to all domains and subdomains.
+   * - Specific array of domain names.
+   *
+   * Example:
+   * ```typescript
+   * { connectTo: ['example.com', 'sub.example.com'] }
+   * ```
+   */
+  connectTo?: 'all' | string[] | undefined;
 }
 
 /**
@@ -226,4 +251,29 @@ export interface SubDomainStructure {
    * ```
    */
   '404'?: CallbackRoute;
+
+  /**
+   * Defines the communication mode for the host.
+   * - 'connected': Domain and subdomains can communicate.
+   * - 'isolated': Each subdomain operates independently.
+   * - 'public': Open communication for the host with any origin.
+   *
+   * Example:
+   * ```typescript
+   * { communication: 'connected' }
+   * ```
+   */
+  communication?: 'connected' | 'isolated' | 'public';
+
+  /**
+   * Specifies which domains this domain can connect to.
+   * - 'all': Connects to all domains and subdomains.
+   * - Specific array of domain names.
+   *
+   * Example:
+   * ```typescript
+   * { connectTo: ['example.com', 'sub.example.com'] }
+   * ```
+   */
+  connectTo?: 'all' | string[];
 }

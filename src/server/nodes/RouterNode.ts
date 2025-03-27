@@ -111,13 +111,29 @@ export class DomainThree {
    * ```
    */
   '404'?: CallbackRoute;
-}
 
-// Example usage:
-// const routeNode = new RouteNode();
-// const domain = new DomainThree();
-// domain.children.set('example.com', new DomainThree());
-// domain.routes.methods = { GET: { path: '/', method: 'GET', callbacks: [homepageHandler] } };
-// domain.uses = [middlewareFunction];
-// domain.staticUrl = '/path/to/static/files';
-// domain['404'] = (req, res) => res.send('Custom 404 Page');
+  /**
+   * Defines the communication mode for the host.
+   * - 'connected': Domain and subdomains can communicate.
+   * - 'isolated': Each subdomain operates independently.
+   * - 'public': Open communication for the host with any origin.
+   *
+   * Example:
+   * ```typescript
+   * { communication: 'connected' }
+   * ```
+   */
+  communication?: 'connected' | 'isolated' | 'public';
+
+  /**
+   * Specifies which domains this domain can connect to.
+   * - 'all': Connects to all domains and subdomains.
+   * - Specific array of domain names.
+   *
+   * Example:
+   * ```typescript
+   * { connectTo: ['example.com', 'sub.example.com'] }
+   * ```
+   */
+  connectTo?: 'all' | string[] | undefined;
+}
